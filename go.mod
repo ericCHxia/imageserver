@@ -7,10 +7,10 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.23.1
 	github.com/aws/aws-sdk-go-v2/config v1.25.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.44.0
+	github.com/davidbyttow/govips/v2 v2.13.0
 	github.com/eko/gocache/lib/v4 v4.1.5
 	github.com/eko/gocache/store/bigcache/v4 v4.2.1
 	github.com/gin-gonic/gin v1.9.1
-	github.com/h2non/bimg v1.1.9
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/sirupsen/logrus v1.6.0
 )
@@ -66,6 +66,7 @@ require (
 	golang.org/x/arch v0.6.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
+	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

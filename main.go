@@ -10,11 +10,11 @@ import (
 	"github.com/allegro/bigcache/v3"
 	s3config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	bigCacheStore "github.com/eko/gocache/store/bigcache/v4"
 	"github.com/gin-gonic/gin"
-	"github.com/h2non/bimg"
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/sirupsen/logrus"
 	"imageserver/config"
@@ -58,29 +58,29 @@ func GetImages(cfg config.Config, s3Client *S3ClientWithObjectCache) gin.Handler
 			}
 		}(obj.Body)
 
-		imageBytes, err := io.ReadAll(obj.Body)
-		logrus.Infoln("Image size:", len(imageBytes))
+		img, err := vips.NewImageFromReader(obj.Body)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error reading file"})
+			logrus.Errorln("Error reading image:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error reading image"})
 			return
 		}
-		img := bimg.NewImage(imageBytes)
+		defer img.Close()
 
-		if img.Type() == "unknown" {
+		if img.Format() == vips.ImageTypeUnknown {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Invalid Image"})
 			return
 		}
-		fmt.Printf("Image option: %+v\n", request.Options)
-		imageBytes, err = img.Process(request.Options)
+		logrus.Infof("Image option: %+v\n", request.Options)
+		imageBytes, err := Process(img, request.Options)
 		if err != nil {
 			logrus.Errorln("Error processing image:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing image"})
 			return
 		}
 
-		contentType := "image/" + img.Type()
-		if request.Options.Type != bimg.UNKNOWN {
-			contentType = "image/" + bimg.ImageTypeName(request.Options.Type)
+		contentType := "image/" + ImageTypes[img.Format()]
+		if request.Options.Type != vips.ImageTypeUnknown {
+			contentType = "image/" + ImageTypes[request.Options.Type]
 		}
 		c.Writer.Header().Set("Content-Type", contentType)
 		if cfg.CacheController.Activated {
@@ -118,29 +118,29 @@ func VerifyHMACHandle(cfg config.Config) gin.HandlerFunc {
 func ParsePathHandle(cfg config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		pathes := strings.Split(path, "/")
+		paths := strings.Split(path, "/")
 		var options []string
 		var messageMAC string
 		var filepath string
 		var message string
 		if cfg.Hmac.Activated {
-			if len(pathes) < 4 {
+			if len(paths) < 4 {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 				c.Abort()
 				return
 			}
-			messageMAC = pathes[1]
-			options = pathes[2 : len(pathes)-1]
-			filepath = pathes[len(pathes)-1]
-			message = "/" + strings.Join(pathes[2:], "/")
+			messageMAC = paths[1]
+			options = paths[2 : len(paths)-1]
+			filepath = paths[len(paths)-1]
+			message = "/" + strings.Join(paths[2:], "/")
 		} else {
-			if len(pathes) < 3 {
+			if len(paths) < 3 {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 				c.Abort()
 				return
 			}
-			options = pathes[1 : len(pathes)-1]
-			filepath = pathes[len(pathes)-1]
+			options = paths[1 : len(paths)-1]
+			filepath = paths[len(paths)-1]
 		}
 
 		if cfg.Base64Path {
@@ -188,13 +188,13 @@ func ParseRequestHandle() gin.HandlerFunc {
 					request.Width = width
 				}
 			case "f":
-				for imageType, name := range bimg.ImageTypes {
+				for imageType, name := range ImageTypes {
 					if name == value {
 						request.Type = imageType
 						break
 					}
 				}
-				if request.Type == bimg.UNKNOWN {
+				if request.Type == vips.ImageTypeUnknown {
 					c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid format"})
 					return
 				}
