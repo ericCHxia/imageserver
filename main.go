@@ -5,6 +5,7 @@ import (
 	"github.com/allegro/bigcache/v3"
 	s3config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	bigCacheStore "github.com/eko/gocache/store/bigcache/v4"
@@ -16,6 +17,8 @@ import (
 )
 
 func main() {
+	vips.Startup(nil)
+	defer vips.Shutdown()
 	var cfg config.Config
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
 		panic(err)
@@ -31,7 +34,7 @@ func main() {
 	cacheStore := bigCacheStore.NewBigcache(cacheClient)
 	marshal := marshaler.New(cache.New[any](cacheStore))
 
-	provider := NewS3ClientWithObjectCache(s3.NewFromConfig(sdkConfig), marshal, &cfg)
+	provider := NewS3ProviderWithObjectCache(s3.NewFromConfig(sdkConfig), marshal, &cfg)
 
 	r := gin.Default()
 	r.UseRawPath = true

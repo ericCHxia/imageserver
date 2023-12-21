@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"imageserver/config"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -28,14 +27,8 @@ func GetImageHandle(p Provider) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 			return
 		}
-		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				logrus.Errorln("Error closing body:", err)
-			}
-		}(obj.Body)
 
-		img, err := vips.NewImageFromReader(obj.Body)
+		img, err := vips.NewImageFromBuffer(obj.Body)
 		if err != nil {
 			logrus.Errorln("Error reading image:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error reading image"})

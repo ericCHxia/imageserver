@@ -1,13 +1,12 @@
 package main
 
 import (
-	"io"
 	"time"
 )
 
 type Object struct {
 	ObjectAttribute
-	Body io.ReadCloser
+	Body []byte
 }
 
 type ObjectAttribute struct {
